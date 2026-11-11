@@ -7,13 +7,39 @@ export default function AskModal({ open, onClose, reload }) {
     desc: "",
     tag: "exams",
   });
+  const [error, setError] = useState("");
 
   const postQuestion = async () => {
-    if (!form.title.trim()) return;
-    await api.post("/questions", form);
-    reload();
-    onClose();
-    setForm({ title: "", desc: "", tag: "exams" });
+    const title = form.title.trim();
+    const desc = form.desc.trim();
+
+    if (title.length < 5) {
+      setError("Question title must be at least 5 characters.");
+      return;
+    }
+
+    if (desc.length < 10) {
+      setError("Description must be at least 10 characters.");
+      return;
+    }
+
+    try {
+      setError("");
+      await api.post("/questions", { ...form, title, desc });
+      reload();
+      onClose();
+      setForm({ title: "", desc: "", tag: "exams" });
+    } catch (err) {
+      if (err.response?.status === 401) {
+        setError("Your login session has expired. Please log in again.");
+      } else {
+        setError(
+          err.response?.data?.errors?.join(" ") ||
+            err.response?.data?.message ||
+            "Unable to post the question. Please try again."
+        );
+      }
+    }
   };
 
   if (!open) return null;
@@ -25,20 +51,35 @@ export default function AskModal({ open, onClose, reload }) {
           Ask a Question
         </h2>
 
+        {error && (
+          <p className="mb-3 rounded bg-red-50 p-2 text-sm text-red-700">
+            {error}
+          </p>
+        )}
+
         <input
           placeholder="Title"
           className="w-full border p-2 mb-2 rounded"
-          onChange={(e) => setForm({ ...form, title: e.target.value })}
+          value={form.title}
+          onChange={(e) => {
+            setError("");
+            setForm({ ...form, title: e.target.value });
+          }}
         />
 
         <textarea
           placeholder="Description"
           className="w-full border p-2 mb-2 rounded"
-          onChange={(e) => setForm({ ...form, desc: e.target.value })}
+          value={form.desc}
+          onChange={(e) => {
+            setError("");
+            setForm({ ...form, desc: e.target.value });
+          }}
         />
 
         <select
           className="w-full border p-2 mb-4 rounded"
+          value={form.tag}
           onChange={(e) => setForm({ ...form, tag: e.target.value })}
         >
           <option value="exams">Exams</option>
